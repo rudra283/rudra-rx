@@ -192,6 +192,20 @@ async function startServer() {
     }
   });
 
+  // API 404 Handler
+  app.use("/api/*", (req, res) => {
+    res.status(404).json({ error: "API Route Not Found" });
+  });
+
+  // Global JSON Error Handler
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error("Server Error:", err);
+    res.status(500).json({ 
+      error: "Internal Server Error", 
+      message: process.env.NODE_ENV === 'production' ? "Something went wrong" : err.message 
+    });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

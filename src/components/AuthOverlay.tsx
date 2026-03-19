@@ -110,6 +110,13 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ onAuth }) => {
         body: JSON.stringify(body),
       });
 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Server returned non-JSON response:", text);
+        throw new Error(`Server Error: Received ${response.status}. Please check server logs.`);
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -244,9 +251,22 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ onAuth }) => {
                 <Sparkles className="w-4 h-4 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
               
-              <div className="flex items-center gap-2 text-[10px] text-neutral-600 uppercase tracking-[0.2em] font-bold">
-                <ShieldCheck className="w-3 h-3" />
-                <span>Secure AI Environment</span>
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-[10px] text-neutral-600 uppercase tracking-[0.2em] font-bold">
+                    <ShieldCheck className="w-3 h-3" />
+                    <span>Secure AI Environment</span>
+                  </div>
+                  <div className="w-1 h-1 rounded-full bg-neutral-800" />
+                  <a 
+                    href="https://t.me/iamhacker38" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-[10px] text-emerald-500/60 hover:text-emerald-500 uppercase tracking-[0.2em] font-bold transition-colors"
+                  >
+                    <span>Contact</span>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
