@@ -25,6 +25,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [trialCount, setTrialCount] = useState<number>(() => {
+    const saved = localStorage.getItem('geminix_trial_count');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  const TRIAL_LIMIT = 15;
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -34,10 +40,22 @@ export default function App() {
     setIsAuthReady(true);
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem('geminix_trial_count', trialCount.toString());
+  }, [trialCount]);
+
+  const incrementTrial = () => {
+    if (!user) {
+      setTrialCount(prev => prev + 1);
+    }
+  };
+
   const renderTab = () => {
+    const commonProps = { incrementTrial, isTrialExceeded: !user && trialCount >= TRIAL_LIMIT };
+    
     switch (activeTab) {
       case 'home': return <HomeTab onTabChange={setActiveTab} />;
-      case 'chat': return <ChatTab />;
+      case 'chat': return <ChatTab {...commonProps} />;
       case 'voice': return <VoiceTab />;
       case 'image-gen': return <ImageGenTab />;
       case 'video-gen': return <VideoGenTab />;
@@ -48,16 +66,18 @@ export default function App() {
       case 'history': return <HistoryTab />;
       case 'admin': return <AdminTab />;
       case 'settings': return <SettingsTab />;
-      default: return <ChatTab />;
+      default: return <ChatTab {...commonProps} />;
     }
   };
 
   if (!isAuthReady) return null;
 
+  const showAuth = !user && trialCount >= TRIAL_LIMIT;
+
   return (
     <div className="flex h-screen bg-neutral-950 text-neutral-200 font-sans overflow-hidden">
       <AnimatePresence>
-        {!user && <AuthOverlay onAuth={setUser} />}
+        {showAuth && <AuthOverlay onAuth={setUser} />}
       </AnimatePresence>
 
       {/* Sidebar */}

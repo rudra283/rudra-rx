@@ -95,6 +95,14 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ onAuth }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    // Health check on mount to verify API reachability
+    fetch('/api/health')
+      .then(res => res.json())
+      .then(data => console.log('[Auth] API Health:', data))
+      .catch(err => console.error('[Auth] API Health Check Failed:', err));
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -103,30 +111,45 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ onAuth }) => {
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     const body = isLogin ? { email, password } : { email, password, name };
 
+    console.log(`[Auth] Attempting ${isLogin ? 'Login' : 'Register'} at ${endpoint}`);
+    
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(body),
       });
 
+      console.log(`[Auth] Response Status: ${response.status}`);
       const contentType = response.headers.get("content-type");
+      console.log(`[Auth] Content-Type: ${contentType}`);
+
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
-        console.error("Server returned non-JSON response:", text);
-        throw new Error(`Server Error: Received ${response.status}. Please check server logs.`);
+        console.error("[Auth] Server returned non-JSON response:", text);
+        
+        // If it's a 404 and HTML, it's likely hitting the Vite fallback
+        if (response.status === 404) {
+          throw new Error(`API Route Not Found (404). Please ensure the server is running and routes are correct.`);
+        }
+        throw new Error(`Server Error: Received ${response.status} (${response.statusText}).`);
       }
 
       const data = await response.json();
 
       if (!response.ok) {
+        console.warn("[Auth] Request failed:", data);
         throw new Error(data.error || data.message || `Authentication failed: ${response.status}`);
       }
 
+      console.log("[Auth] Success:", data);
       localStorage.setItem('user', JSON.stringify(data.user));
       onAuth(data.user);
     } catch (err: any) {
-      console.error("Auth Error:", err);
+      console.error("[Auth] Error during submission:", err);
       setError(err.message);
     } finally {
       setLoading(false);

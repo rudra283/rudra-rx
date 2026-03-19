@@ -7,9 +7,10 @@ interface VoiceInputProps {
   onTranscript: (transcript: string) => void;
   className?: string;
   placeholder?: string;
+  disabled?: boolean;
 }
 
-export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, className, placeholder }) => {
+export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, className, placeholder, disabled }) => {
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -51,6 +52,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, className,
   }, [onTranscript]);
 
   const toggleListening = async () => {
+    if (disabled) return;
     if (!recognitionRef.current) {
       alert("Speech recognition is not supported in this browser.");
       return;
@@ -98,11 +100,13 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, className,
       </AnimatePresence>
       <button
         onClick={toggleListening}
+        disabled={disabled}
         className={cn(
           "p-2 rounded-lg transition-all flex items-center justify-center",
           isListening 
             ? "bg-red-500 text-white animate-pulse" 
-            : "bg-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-700"
+            : "bg-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-700",
+          disabled && "opacity-50 cursor-not-allowed"
         )}
         title={isListening ? "Stop Listening" : placeholder || "Voice Input"}
       >

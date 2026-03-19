@@ -57,18 +57,33 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
 
   // Request logging for debugging
-  app.use("/api", (req, res, next) => {
-    console.log(`[API Request] ${req.method} ${req.originalUrl}`);
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      console.log(`[API Request] ${req.method} ${req.path}`);
+    }
     next();
   });
 
-  // Auth Routes
-  app.post("/api/auth/register", async (req, res) => {
+  // Health check route
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      env: process.env.NODE_ENV || 'development'
+    });
+  });
+
+  // Auth Router
+  const authRouter = express.Router();
+
+  authRouter.post("/register", async (req, res) => {
     const { email, password, name } = req.body;
+    console.log(`[Auth] Register attempt for: ${email}`);
     try {
       const users = await getUsers();
       
       if (users.find((u: any) => u.email === email)) {
+        console.warn(`[Auth] Register failed: User already exists (${email})`);
         return res.status(400).json({ error: "User already exists" });
       }
 
@@ -83,29 +98,37 @@ async function startServer() {
       users.push(newUser);
       await saveUsers(users);
       
+      console.log(`[Auth] Register success for: ${email}`);
       const { password: _, ...userWithoutPassword } = newUser;
       res.json({ user: userWithoutPassword });
     } catch (error) {
+      console.error(`[Auth] Register error:`, error);
       res.status(500).json({ error: "Registration failed" });
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  authRouter.post("/login", async (req, res) => {
     const { email, password } = req.body;
+    console.log(`[Auth] Login attempt for: ${email}`);
     try {
       const users = await getUsers();
       const user = users.find((u: any) => u.email === email && u.password === password);
       
       if (!user) {
+        console.warn(`[Auth] Login failed: Invalid credentials for ${email}`);
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      console.log(`[Auth] Login success for: ${email}`);
       const { password: _, ...userWithoutPassword } = user;
       res.json({ user: userWithoutPassword });
     } catch (error) {
+      console.error(`[Auth] Login error:`, error);
       res.status(500).json({ error: "Login failed" });
     }
   });
+
+  app.use("/api/auth", authRouter);
 
   // OpenRouter Models Route
   app.get("/api/models/openrouter", async (req, res) => {
@@ -200,11 +223,11 @@ async function startServer() {
 
   // API 404 Handler - Catch any unmatched /api routes
   app.use("/api", (req, res) => {
-    console.warn(`[API 404] ${req.method} ${req.originalUrl}`);
+    console.warn(`[API 404] ${req.method} ${req.path}`);
     res.status(404).json({ 
       error: "API Route Not Found", 
       method: req.method,
-      path: req.originalUrl 
+      path: req.path 
     });
   });
 

@@ -9,7 +9,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { VoiceInput } from './VoiceInput';
 import { OPENROUTER_MODELS_LIST } from '../constants';
 
-export const ChatTab: React.FC = () => {
+interface ChatTabProps {
+  incrementTrial?: () => void;
+  isTrialExceeded?: boolean;
+}
+
+export const ChatTab: React.FC<ChatTabProps> = ({ incrementTrial, isTrialExceeded }) => {
   const [messages, setMessages] = useState<Message[]>(() => {
     const saved = localStorage.getItem('geminix_chat_history');
     return saved ? JSON.parse(saved) : [];
@@ -21,6 +26,7 @@ export const ChatTab: React.FC = () => {
   const [useSearch, setUseSearch] = useState(false);
   const [selectedORModel, setSelectedORModel] = useState<string | null>(null);
   const [showORMenu, setShowORMenu] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [availableModels, setAvailableModels] = useState<any[]>(OPENROUTER_MODELS_LIST);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -39,6 +45,7 @@ export const ChatTab: React.FC = () => {
           const models = data.map((m: any) => ({
             id: m.id,
             name: m.name,
+            description: m.description,
             provider: m.id.split('/')[0]
           }));
           setAvailableModels(models);
@@ -69,6 +76,11 @@ export const ChatTab: React.FC = () => {
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+
+    // Increment trial count if applicable
+    if (incrementTrial) {
+      incrementTrial();
+    }
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -110,6 +122,12 @@ export const ChatTab: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const filteredModels = availableModels.filter(m => 
+    m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    m.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (m.description && m.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -154,7 +172,7 @@ export const ChatTab: React.FC = () => {
                   selectedORModel ? "bg-blue-500 text-white" : "text-neutral-400 hover:text-neutral-200"
                 )}
               >
-                {selectedORModel ? availableModels.find(m => m.id === selectedORModel)?.name : 'Model Name'}
+                {selectedORModel ? availableModels.find(m => m.id === selectedORModel)?.name : 'Model Selection'}
                 <ChevronDown className={cn("w-3 h-3 transition-transform", showORMenu && "rotate-180")} />
               </button>
               
@@ -164,38 +182,49 @@ export const ChatTab: React.FC = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full left-0 mt-2 w-64 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden max-h-[400px] overflow-y-auto"
+                    className="absolute top-full left-0 mt-2 w-80 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden max-h-[500px] flex flex-col"
                   >
-                    <div className="p-2 border-b border-neutral-800 sticky top-0 bg-neutral-900 z-10">
-                      <input 
-                        type="text" 
-                        placeholder="Search models..." 
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-1.5 text-[10px] focus:outline-none focus:border-emerald-500/50"
-                        onChange={(e) => {
-                          const term = e.target.value.toLowerCase();
-                          // Simple client-side filter for the dropdown
-                          // This is a bit hacky but works for now
-                          const items = document.querySelectorAll('.model-item');
-                          items.forEach((item: any) => {
-                            const text = item.innerText.toLowerCase();
-                            item.style.display = text.includes(term) ? 'flex' : 'none';
-                          });
-                        }}
-                      />
+                    <div className="p-3 border-b border-neutral-800 bg-neutral-950/50">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500" />
+                        <input 
+                          type="text" 
+                          placeholder="Search models or descriptions..." 
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-emerald-500/50 transition-all"
+                        />
+                      </div>
                     </div>
-                    {availableModels.map((model) => (
-                      <button
-                        key={model.id}
-                        onClick={() => {
-                          setSelectedORModel(model.id);
-                          setShowORMenu(false);
-                        }}
-                        className="model-item w-full px-4 py-2.5 text-left text-xs hover:bg-neutral-800 transition-colors flex flex-col"
-                      >
-                        <span className="font-medium text-neutral-200">{model.name}</span>
-                        <span className="text-[10px] text-neutral-500 uppercase tracking-tighter">{model.provider}</span>
-                      </button>
-                    ))}
+                    <div className="overflow-y-auto flex-1 custom-scrollbar">
+                      {filteredModels.length > 0 ? (
+                        filteredModels.map((model) => (
+                          <button
+                            key={model.id}
+                            onClick={() => {
+                              setSelectedORModel(model.id);
+                              setShowORMenu(false);
+                              setSearchTerm('');
+                            }}
+                            className="w-full px-4 py-3 text-left hover:bg-neutral-800 transition-colors border-b border-neutral-800/50 last:border-0 group"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold text-neutral-200 group-hover:text-emerald-400 transition-colors">{model.name}</span>
+                              <span className="text-[9px] px-1.5 py-0.5 bg-neutral-800 rounded text-neutral-500 uppercase font-bold tracking-wider">{model.provider}</span>
+                            </div>
+                            {model.description && (
+                              <p className="text-[10px] text-neutral-500 line-clamp-2 leading-relaxed italic">
+                                {model.description}
+                              </p>
+                            )}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center">
+                          <p className="text-xs text-neutral-500">No models found matching "{searchTerm}"</p>
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -360,15 +389,19 @@ export const ChatTab: React.FC = () => {
                 handleSend();
               }
             }}
-            placeholder="Type your message..."
-            className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-4 pr-24 text-sm focus:outline-none focus:border-emerald-500/50 transition-all resize-none min-h-[60px] max-h-[200px]"
+            placeholder={isTrialExceeded ? "Trial limit reached. Please sign in to continue." : "Type your message..."}
+            className={cn(
+              "w-full bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-4 pr-24 text-sm focus:outline-none focus:border-emerald-500/50 transition-all resize-none min-h-[60px] max-h-[200px]",
+              isTrialExceeded && "opacity-50 cursor-not-allowed"
+            )}
             rows={1}
+            disabled={isTrialExceeded}
           />
           <div className="absolute right-2 bottom-2 flex items-center gap-2">
-            <VoiceInput onTranscript={handleTranscript} className="p-0.5" />
+            <VoiceInput onTranscript={handleTranscript} className="p-0.5" disabled={isTrialExceeded} />
             <button
               onClick={handleSend}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || loading || isTrialExceeded}
               className="p-2.5 bg-emerald-500 text-black rounded-xl hover:bg-emerald-400 disabled:opacity-50 disabled:hover:bg-emerald-500 transition-all"
             >
               <Send className="w-5 h-5" />
