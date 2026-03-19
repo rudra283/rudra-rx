@@ -1,0 +1,8 @@
+{
+  "name": "GeminiX Cloud Assistant",
+  "description": "All-in-one multi-modal AI platform: Talk, See, Think, Create. Powered by Gemini.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
