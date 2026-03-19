@@ -120,12 +120,13 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ onAuth }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
+        throw new Error(data.error || data.message || `Authentication failed: ${response.status}`);
       }
 
       localStorage.setItem('user', JSON.stringify(data.user));
       onAuth(data.user);
     } catch (err: any) {
+      console.error("Auth Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
